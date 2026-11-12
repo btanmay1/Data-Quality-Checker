@@ -1,0 +1,4 @@
+table,records,records_with_any_issue,clean_record_rate,rules,rules_failed,critical_failures,dq_score
+accounts,4000,45,0.9888,7,4,2,0.9931
+customers,3000,139,0.9537,10,5,3,0.9953
+transactions,20000,62,0.9969,7,4,4,0.8567

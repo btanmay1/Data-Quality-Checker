@@ -1,0 +1,21 @@
+{
+  "customers.email_not_null": 40,
+  "customers.email_format": 30,
+  "customers.pan_format": 25,
+  "customers.dob_valid": 5,
+  "customers.adult_at_onboarding": 8,
+  "customers.kyc_date_when_verified": 15,
+  "customers.risk_rating_values": 10,
+  "customers.customer_id_unique": 6,
+  "accounts.customer_fk": 12,
+  "accounts.close_after_open": 7,
+  "accounts.close_date_when_closed": 9,
+  "accounts.credit_limit_range": 6,
+  "accounts.balance_within_limit": 11,
+  "transactions.account_fk": 20,
+  "transactions.amount_positive": 13,
+  "transactions.currency_values": 15,
+  "transactions.after_account_open": 10,
+  "transactions.txn_id_unique": 4,
+  "transactions.reconcile_to_source": 1
+}

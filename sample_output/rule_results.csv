@@ -1,0 +1,25 @@
+rule_id,table,dimension,severity,rule_type,description,check,records_tested,records_failed,fail_rate,tolerance,status,pass_rate
+customers.customer_id_not_null,customers,Completeness,Critical,not_null,Every customer has an ID,columns: customer_id,3000,0,0.0,0.0,PASS,1.0
+customers.customer_id_unique,customers,Uniqueness,Critical,unique,Customer ID is unique,key: customer_id,3000,6,0.002,0.0,FAIL,0.998
+customers.email_not_null,customers,Completeness,Minor,not_null,Email captured for statements and alerts,columns: email,3000,40,0.01333,0.01,FAIL,0.98667
+customers.email_format,customers,Validity,Minor,regex,Email is well formed,"email matches [^@\s]+@[^@\s]+\.[A-Za-z]{2,}",2960,30,0.01014,0.02,PASS,0.98986
+customers.pan_format,customers,Validity,Major,regex,PAN matches individual PAN format,pan matches [A-Z]{3}P[A-Z][0-9]{4}[A-Z],3000,25,0.00833,0.005,FAIL,0.99167
+customers.dob_valid,customers,Validity,Major,date_valid,Date of birth is a real date,dob is a valid date (%Y-%m-%d),3000,5,0.00167,0.005,PASS,0.99833
+customers.adult_at_onboarding,customers,Accuracy,Critical,sql,Customer was 18+ when onboarded,"SELECT _row FROM customers WHERE date(dob) IS NOT NULL AND date(dob, '+18 years') > date(created_date)",3000,8,0.00267,0.0,FAIL,0.99733
+customers.kyc_status_values,customers,Validity,Major,allowed_values,KYC status from reference list,"kyc_status in ['VERIFIED', 'PENDING', 'REJECTED']",3000,0,0.0,0.005,PASS,1.0
+customers.kyc_date_when_verified,customers,Consistency,Critical,conditional_not_null,Verified customers have a verification date,kyc_verified_date required when kyc_status = VERIFIED,2678,15,0.0056,0.0,FAIL,0.9944
+customers.risk_rating_values,customers,Validity,Major,allowed_values,AML risk rating from reference list,"risk_rating in ['Low', 'Medium', 'High']",3000,10,0.00333,0.005,PASS,0.99667
+accounts.account_id_unique,accounts,Uniqueness,Critical,unique,Account ID is unique,key: account_id,4000,0,0.0,0.0,PASS,1.0
+accounts.customer_fk,accounts,Integrity,Critical,foreign_key,Every account belongs to a known customer,customer_id -> customers.customer_id,4000,12,0.003,0.0,FAIL,0.997
+accounts.status_values,accounts,Validity,Major,allowed_values,Account status from reference list,"status in ['ACTIVE', 'CLOSED', 'SUSPENDED']",4000,0,0.0,0.005,PASS,1.0
+accounts.close_date_when_closed,accounts,Consistency,Major,conditional_not_null,Closed accounts have a close date,close_date required when status = CLOSED,397,9,0.02267,0.005,FAIL,0.97733
+accounts.close_after_open,accounts,Consistency,Major,compare,Close date is not before open date,open_date <= close_date,388,7,0.01804,0.005,FAIL,0.9819599999999999
+accounts.credit_limit_range,accounts,Validity,Critical,range,Credit limit is numeric and within policy range,1000 <= credit_limit <= 5000000 (non-numeric fails),4000,6,0.0015,0.0,FAIL,0.9985
+accounts.balance_within_limit,accounts,Accuracy,Major,sql,Balance is not more than 150% of limit,SELECT _row FROM accounts WHERE credit_limit NOT GLOB '*[^0-9.]*' AND CAST(credit_limit AS REAL) > 0 AND CAST(current_balance AS REAL) > 1.5 * CAST(credit_limit AS REAL),4000,11,0.00275,0.005,PASS,0.99725
+transactions.txn_id_unique,transactions,Uniqueness,Critical,unique,Transaction ID is unique,key: txn_id,20000,4,0.0002,0.0,FAIL,0.9998
+transactions.account_fk,transactions,Integrity,Critical,foreign_key,Every transaction belongs to a known account,account_id -> accounts.account_id,20000,20,0.001,0.0,FAIL,0.999
+transactions.amount_positive,transactions,Validity,Critical,range,Amount is numeric and positive,0.01 <= amount <= inf (non-numeric fails),20000,13,0.00065,0.0,FAIL,0.99935
+transactions.currency_values,transactions,Validity,Major,allowed_values,Domestic extract is INR only,currency in ['INR'],20000,15,0.00075,0.005,PASS,0.99925
+transactions.after_account_open,transactions,Consistency,Major,sql,Transaction is not dated before the account opened,SELECT t._row FROM transactions t JOIN accounts a ON a.account_id = t.account_id WHERE date(t.txn_date) < date(a.open_date),20000,10,0.0005,0.005,PASS,0.9995
+transactions.freshness,transactions,Timeliness,Critical,freshness,Extract includes yesterday's transactions,"latest txn_date = 2026-10-30, 1 days before 2026-10-31 (max 2)",1,0,0.0,0.0,PASS,1.0
+transactions.reconcile_to_source,transactions,Accuracy,Critical,reconcile,Record count and amount total agree with source-system control totals,"count 20,000 vs control 20,001; sum 66,193,572.65 vs control 66,195,407.15",1,1,1.0,0.0,FAIL,0.0

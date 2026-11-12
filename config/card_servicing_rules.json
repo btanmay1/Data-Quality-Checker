@@ -1,0 +1,36 @@
+{
+  "dataset": "Card servicing extract",
+  "default_tolerance": {"Critical": 0.0, "Major": 0.005, "Minor": 0.02},
+  "control_totals_file": "control_totals.json",
+  "rules": [
+    {"id": "customers.customer_id_not_null", "table": "customers", "type": "not_null", "columns": ["customer_id"], "dimension": "Completeness", "severity": "Critical", "description": "Every customer has an ID"},
+    {"id": "customers.customer_id_unique", "table": "customers", "type": "unique", "columns": ["customer_id"], "dimension": "Uniqueness", "severity": "Critical", "description": "Customer ID is unique"},
+    {"id": "customers.email_not_null", "table": "customers", "type": "not_null", "columns": ["email"], "dimension": "Completeness", "severity": "Minor", "tolerance": 0.01, "description": "Email captured for statements and alerts"},
+    {"id": "customers.email_format", "table": "customers", "type": "regex", "column": "email", "pattern": "[^@\\s]+@[^@\\s]+\\.[A-Za-z]{2,}", "dimension": "Validity", "severity": "Minor", "description": "Email is well formed"},
+    {"id": "customers.pan_format", "table": "customers", "type": "regex", "column": "pan", "pattern": "[A-Z]{3}P[A-Z][0-9]{4}[A-Z]", "dimension": "Validity", "severity": "Major", "description": "PAN matches individual PAN format"},
+    {"id": "customers.dob_valid", "table": "customers", "type": "date_valid", "column": "dob", "dimension": "Validity", "severity": "Major", "description": "Date of birth is a real date"},
+    {"id": "customers.adult_at_onboarding", "table": "customers", "type": "sql", "dimension": "Accuracy", "severity": "Critical",
+     "sql": "SELECT _row FROM customers WHERE date(dob) IS NOT NULL AND date(dob, '+18 years') > date(created_date)", "description": "Customer was 18+ when onboarded"},
+    {"id": "customers.kyc_status_values", "table": "customers", "type": "allowed_values", "column": "kyc_status", "values": ["VERIFIED", "PENDING", "REJECTED"], "dimension": "Validity", "severity": "Major", "description": "KYC status from reference list"},
+    {"id": "customers.kyc_date_when_verified", "table": "customers", "type": "conditional_not_null", "column": "kyc_verified_date", "when_column": "kyc_status", "when_value": "VERIFIED", "dimension": "Consistency", "severity": "Critical", "description": "Verified customers have a verification date"},
+    {"id": "customers.risk_rating_values", "table": "customers", "type": "allowed_values", "column": "risk_rating", "values": ["Low", "Medium", "High"], "dimension": "Validity", "severity": "Major", "description": "AML risk rating from reference list"},
+
+    {"id": "accounts.account_id_unique", "table": "accounts", "type": "unique", "columns": ["account_id"], "dimension": "Uniqueness", "severity": "Critical", "description": "Account ID is unique"},
+    {"id": "accounts.customer_fk", "table": "accounts", "type": "foreign_key", "column": "customer_id", "references": "customers.customer_id", "dimension": "Integrity", "severity": "Critical", "description": "Every account belongs to a known customer"},
+    {"id": "accounts.status_values", "table": "accounts", "type": "allowed_values", "column": "status", "values": ["ACTIVE", "CLOSED", "SUSPENDED"], "dimension": "Validity", "severity": "Major", "description": "Account status from reference list"},
+    {"id": "accounts.close_date_when_closed", "table": "accounts", "type": "conditional_not_null", "column": "close_date", "when_column": "status", "when_value": "CLOSED", "dimension": "Consistency", "severity": "Major", "description": "Closed accounts have a close date"},
+    {"id": "accounts.close_after_open", "table": "accounts", "type": "compare", "left": "open_date", "op": "<=", "right": "close_date", "as": "date", "dimension": "Consistency", "severity": "Major", "description": "Close date is not before open date"},
+    {"id": "accounts.credit_limit_range", "table": "accounts", "type": "range", "column": "credit_limit", "min": 1000, "max": 5000000, "dimension": "Validity", "severity": "Critical", "description": "Credit limit is numeric and within policy range"},
+    {"id": "accounts.balance_within_limit", "table": "accounts", "type": "sql", "dimension": "Accuracy", "severity": "Major",
+     "sql": "SELECT _row FROM accounts WHERE credit_limit NOT GLOB '*[^0-9.]*' AND CAST(credit_limit AS REAL) > 0 AND CAST(current_balance AS REAL) > 1.5 * CAST(credit_limit AS REAL)", "description": "Balance is not more than 150% of limit"},
+
+    {"id": "transactions.txn_id_unique", "table": "transactions", "type": "unique", "columns": ["txn_id"], "dimension": "Uniqueness", "severity": "Critical", "description": "Transaction ID is unique"},
+    {"id": "transactions.account_fk", "table": "transactions", "type": "foreign_key", "column": "account_id", "references": "accounts.account_id", "dimension": "Integrity", "severity": "Critical", "description": "Every transaction belongs to a known account"},
+    {"id": "transactions.amount_positive", "table": "transactions", "type": "range", "column": "amount", "min": 0.01, "dimension": "Validity", "severity": "Critical", "description": "Amount is numeric and positive"},
+    {"id": "transactions.currency_values", "table": "transactions", "type": "allowed_values", "column": "currency", "values": ["INR"], "dimension": "Validity", "severity": "Major", "description": "Domestic extract is INR only"},
+    {"id": "transactions.after_account_open", "table": "transactions", "type": "sql", "dimension": "Consistency", "severity": "Major",
+     "sql": "SELECT t._row FROM transactions t JOIN accounts a ON a.account_id = t.account_id WHERE date(t.txn_date) < date(a.open_date)", "description": "Transaction is not dated before the account opened"},
+    {"id": "transactions.freshness", "table": "transactions", "type": "freshness", "column": "txn_date", "as_of": "2026-10-31", "max_age_days": 2, "dimension": "Timeliness", "severity": "Critical", "description": "Extract includes yesterday's transactions"},
+    {"id": "transactions.reconcile_to_source", "table": "transactions", "type": "reconcile", "column": "amount", "control_key": "transactions", "dimension": "Accuracy", "severity": "Critical", "description": "Record count and amount total agree with source-system control totals"}
+  ]
+}
